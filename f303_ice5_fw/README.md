@@ -22,7 +22,7 @@ There are several flashing options in the Makefile
 
 Hook up your download pod and run
 
-make <flash option from above list>
+make [flash option from above list]
 
 * dfu - flash using the STM32F303 USB DFU bootloader
 
@@ -36,9 +36,16 @@ Running
 
 Plug into USB cable. This basic firmware doesn't provide USB functionality but
 it does provide a serial 115k command processor on pins 5/6 of the expansion
-connector. Type 'help' to get a list of supported commands.
+connector. Type 'help' to get the latest list of supported commands. At this
+point these commands are provided:
 
-At this time the included bitmap.bin FPGA bitstream contains just two
+* help - this message
+* spi_read (addr) - FPGA SPI read reg
+* spi_write (addr) (data) - FPGA SPI write reg, data
+* dir - directory of SD card root
+* config_file (file) - Configure FPGA from file
+
+The included bitmap.bin FPGA bitstream contains just two
 registers accessible via the SPI bus thru the commands "spi_read" and
 "spi_write" - a device ID (0XDEADBEEF) at register 0 and a timer divider
 at register 1 which controls the speed of the 3 LED blinker.
