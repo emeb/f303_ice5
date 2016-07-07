@@ -6,6 +6,8 @@
 #include "ice5.h"
 #include "cyclesleep.h"
 
+/* fool the compiler */
+#define UNUSED(x) ((void)(x))
 /**
   * @brief  SPI Interface pins
   */
@@ -153,6 +155,8 @@ void ICE5_SPI_WriteByte(uint8_t Data)
 	//return SPI_ReceiveData8(ICE5_SPI);
 	//return *(__IO uint8_t *) ((uint32_t)ICE5_SPI+0x0C);
 	uint8_t dummy = *(__IO uint8_t *) ((uint32_t)ICE5_SPI+0x0C);
+    UNUSED(dummy); /* To avoid GCC warning */
+
 }
 
 uint8_t ICE5_SPI_WriteReadByte(uint8_t Data)
@@ -216,9 +220,9 @@ void ICE5_SPI_WriteBlk(uint8_t *Data, uint32_t Count)
 }
 
 /*
- * configure the FPGA
+ * private function to start the config process
  */
-uint8_t ICE5_FPGA_Config(uint8_t *bitmap, uint32_t size)
+uint8_t ICE5_FPGA_Config_start(void)
 {
 	uint32_t timeout;
 	
@@ -240,17 +244,26 @@ uint8_t ICE5_FPGA_Config(uint8_t *bitmap, uint32_t size)
 	if(!timeout)
 	{
 		/* Done bit didn't respond to Reset */
+        ICE5_CRST_HIGH();
+        ICE5_SPI_CS_HIGH();
 		return 1;
 	}
-	
+    
 	/* raise reset */
 	ICE5_CRST_HIGH();
 	
 	/* delay to allow FPGA to reset */
 	delay(1);
-	
-	/* send the bitstream */
-	ICE5_SPI_WriteBlk(bitmap, size);
+    
+    return 0;
+}
+
+/*
+ * private function to finish the config process
+ */
+uint8_t ICE5_FPGA_Config_finish(void)
+{
+	uint32_t timeout;
 	
 	/* send clocks while waiting for DONE to assert */
 	timeout = 100;
@@ -279,6 +292,65 @@ uint8_t ICE5_FPGA_Config(uint8_t *bitmap, uint32_t size)
 	
 	/* no error handling for now */
 	return 0;
+}
+
+/*
+ * configure the FPGA from MCU memory
+ */
+uint8_t ICE5_FPGA_Config(uint8_t *bitmap, uint32_t size)
+{
+    /* start configuration */
+    if(ICE5_FPGA_Config_start())
+    {
+        /* error */
+        return 1;
+    }
+    
+	/* send the bitstream */
+	ICE5_SPI_WriteBlk(bitmap, size);
+	
+    /* finish the configuration */
+    return ICE5_FPGA_Config_finish();
+}
+
+/*
+ * configure the FPGA from a FatFS file
+ */
+uint8_t ICE5_FPGA_Config_File(FIL *File)
+{
+    uint8_t buffer[512];
+    FRESULT fres;
+    uint32_t br;
+    
+    /* start configuration */
+    if(ICE5_FPGA_Config_start())
+    {
+        /* error */
+        return 1;
+    }
+    
+	/* iterate over blocks */
+    while((fres = f_read(File, buffer, 512, (UINT *)&br))==FR_OK)
+    {
+        /* done? */
+        if(br == 0)
+            break;
+        
+        /* send the block */
+        ICE5_SPI_WriteBlk(buffer, br);
+    }
+    
+    /* check for error */
+    if(fres)
+    {
+        /* file error */
+        ICE5_CRST_HIGH();
+        ICE5_SPI_CS_HIGH();
+        return 3;
+    }
+    
+    /* finish the configuration */
+    return ICE5_FPGA_Config_finish();
 }
 
 /*

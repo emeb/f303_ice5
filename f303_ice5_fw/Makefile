@@ -2,13 +2,14 @@
 # 01-28-2013 E. Brombaugh
 
 # sub directories
-VPATH = .:CMSIS:StdPeriph
+VPATH = .:CMSIS:StdPeriph:ff9a
 
 # Object files
 OBJECTS = 	startup_stm32f30x.o system_stm32f30x.o main.o cyclesleep.o \
 			systick.o usart.o stubs.o led.o ice5.o cmd.o bitmap.o \
+            shared_spi.o ff.o diskio.o \
 			stm32f30x_gpio.o stm32f30x_misc.o stm32f30x_rcc.o \
-			stm32f30x_usart.o stm32f30x_spi.o
+			stm32f30x_usart.o stm32f30x_spi.o stm32f30x_dma.o
 
 
 # Linker script
@@ -16,7 +17,7 @@ LDSCRIPT = STM32_FLASH.ld
 
 CFLAGS  = -g -O3 -mlittle-endian -mthumb -ffunction-sections -std=c99
 CFLAGS += -Wall -Wno-strict-aliasing
-CFLAGS += -I. -ICMSIS -IStdPeriph
+CFLAGS += -I. -ICMSIS -IStdPeriph -Iff9a
 CFLAGS += -DARM_MATH_CM4 -D'__FPU_PRESENT=1' -DUSE_STDPERIPH_DRIVER 
 CFLAGS += -DSTM32F303xC -D'HSE_VALUE=((uint32_t)8000000)'
 CFLAGS += -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16

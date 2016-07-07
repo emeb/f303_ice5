@@ -11,9 +11,10 @@
 #include "systick.h"
 #include "usart.h"
 #include "led.h"
-
 #include "ice5.h"
 #include "cmd.h"
+#include "diskio.h"
+#include "ff.h"
 
 /* FPGA bitstream */
 extern uint8_t _binary_bitmap_bin_start;
@@ -40,7 +41,11 @@ int main(void)
 	setup_usart1();
 	printf("\nSTM32F303 ice5\n");
 	
-	/* Setup FM FPGA */
+	/* enable shared spi */
+	setup_shared_spi();
+	printf("Shared SPI configured\n");
+
+	/* Setup FPGA */
 	ICE5_Init();
 	printf("Configuring %d bytes....", (unsigned int)bitmap_size);
 	result = ICE5_FPGA_Config(&_binary_bitmap_bin_start, bitmap_size);

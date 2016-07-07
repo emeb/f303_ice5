@@ -37,7 +37,7 @@
 //#include "stm32f30x_comp.h"
 //#include "stm32f30x_dac.h"
 //#include "stm32f30x_dbgmcu.h"
-//#include "stm32f30x_dma.h"
+#include "stm32f30x_dma.h"
 //#include "stm32f30x_exti.h"
 //#include "stm32f30x_flash.h"
 #include "stm32f30x_gpio.h"

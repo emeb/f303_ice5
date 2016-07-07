@@ -12,6 +12,7 @@
 #include "usart.h"
 #include "cyclesleep.h"
 #include "ice5.h"
+#include "ff.h"
 
 #define MAX_ARGS 4
 
@@ -23,8 +24,17 @@ const char *cmd_commands[] =
 	"help",
 	"spi_read",
 	"spi_write",
-	""
+	"dir",
+    "config_file",
+    ""
 };
+
+/* Fat FS stuff */
+FRESULT fres;
+FATFS Fatfs, *fs;			/* File system object for each logical drive */
+FIL File;					/* File object */
+DIR Dir;					/* Directory object */
+FILINFO Finfo;
 
 /* reset buffer & display the prompt */
 void cmd_prompt(void)
@@ -75,6 +85,8 @@ void cmd_proc(void)
 					printf("help - this message\r\n");
 					printf("spi_read <addr> - FPGA SPI read reg\r\n");
 					printf("spi_write <addr> <data> - FPGA SPI write reg, data\r\n");
+					printf("dir - directory of SD card root\r\n");
+					printf("config_file <file> - Configure FPGA from <file>\r\n");
 					break;
 	
 				case 1: 	/* spi_read */
@@ -100,6 +112,67 @@ void cmd_proc(void)
 					}
 					break;
 		
+				case 3: 	/* dir */
+                    /* Open the root directory */
+                    fres = f_opendir(&Dir, "\\");
+                    printf("opened directory /: 0x%x\n", fres);
+                    
+                    if(fres == 0)
+                    {
+                        /* dump top-level directory */
+                        int32_t p1 = 0;
+                        uint32_t s1 = 0, s2 = 0;
+                        for(;;) {
+                            fres = f_readdir(&Dir, &Finfo);
+                            if ((fres != FR_OK) || !Finfo.fname[0]) break;
+                            if (Finfo.fattrib & AM_DIR) {
+                                s2++;
+                            } else {
+                                s1++; p1 += Finfo.fsize;
+                            }
+                            printf("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9lu  %s\n",
+                                (Finfo.fattrib & AM_DIR) ? 'D' : '-',
+                                (Finfo.fattrib & AM_RDO) ? 'R' : '-',
+                                (Finfo.fattrib & AM_HID) ? 'H' : '-',
+                                (Finfo.fattrib & AM_SYS) ? 'S' : '-',
+                                (Finfo.fattrib & AM_ARC) ? 'A' : '-',
+                                (Finfo.fdate >> 9) + 1980, 
+                                (Finfo.fdate >> 5) & 15,
+                                Finfo.fdate & 31,
+                                (Finfo.ftime >> 11),
+                                (Finfo.ftime >> 5) & 63,
+                                Finfo.fsize,
+                                &(Finfo.fname[0]));
+                        }
+                        printf("%4u File(s),%10lu bytes total\n%4u Dir(s)\n",
+                            (unsigned int)s1, p1, (unsigned int)s2);
+                        //if (f_getfree("\\", (DWORD*)&p1, &fs) == FR_OK)
+                        //	printf(", %10lu bytes free\n", p1 * fs->csize * 512);
+                    }
+					break;
+		
+				case 4: 	/* config_file */
+					if(argc < 2)
+						printf("config_file - missing filename argument\r\n");
+					else
+					{
+                        /* try to open the file */
+                        fres = f_open(&File, argv[1], FA_READ);
+                        if(!fres)
+                        {
+                            /* try to configure FPGA */
+                            uint8_t result = ICE5_FPGA_Config_File(&File);
+                            
+                            if(result)
+                                printf("config_file - ICE5_FPGA_Config_File returned %d\r\n", result);
+                        }
+                        else
+                        {
+                            printf("config_file - can't open file %s\r\n", argv[1]);
+                        }
+                    }
+                    break;
+                
 				default:	/* shouldn't get here */
 					break;
 			}
@@ -111,7 +184,11 @@ void cmd_proc(void)
 	
 void init_cmd(void)
 {
-	/* just prompts for now */
+    /* mount the SD card */
+    fres = f_mount(0, &Fatfs);
+    printf("mounted drive 0: %x\n", fres);
+                    
+	/* prompt */
 	cmd_prompt();
 }
 
